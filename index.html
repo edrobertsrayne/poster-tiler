@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poster Tiler</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  fieldset { margin: 1rem 0; }
+  #preview { max-width: 100%; border: 1px solid #999; display: block; margin-top: 1rem; }
+  #sheetInfo { white-space: pre-wrap; margin-top: 1rem; }
+  .error { color: #a00; }
+  .warning { color: #905400; }
+</style>
+</head>
+<body>
+<h1>Poster Tiler</h1>
+
+<input type="file" id="file" accept="image/png,image/jpeg,image/webp">
+
+<fieldset>
+  <legend>Paper size</legend>
+  <label><input type="radio" name="paper" value="A4" checked> A4</label>
+  <label><input type="radio" name="paper" value="A3"> A3</label>
+</fieldset>
+
+<fieldset>
+  <legend>Orientation</legend>
+  <label><input type="radio" name="orient" value="auto" checked> Auto</label>
+  <label><input type="radio" name="orient" value="portrait"> Portrait</label>
+  <label><input type="radio" name="orient" value="landscape"> Landscape</label>
+</fieldset>
+<fieldset>
+  <legend>Options</legend>
+  <label><input type="checkbox" id="mirror"> Mirror image horizontally</label>
+</fieldset>
+
+<canvas id="preview"></canvas>
+<div id="sheetInfo"></div>
+<button id="download" disabled>Download PDF</button>
+
+<div id="guidance">
+  <p>Print at 100% / Actual size — never Fit to page</p>
+</div>
+
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
