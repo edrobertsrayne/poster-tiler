@@ -8,7 +8,14 @@ const SHEET_PX = {
   A3: { portrait: [842, 1191] },
 };
 const BG = '#ffffff';
-const UNSUPPORTED_RE = /\.(tif|tiff|psd|psb|xcf)$/i;
+const SUPPORTED_MIMES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp', 'image/avif'];
+const SUPPORTED_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|avif)$/i;
+
+function isSupportedFile(file) {
+  const t = (file.type || '').toLowerCase();
+  if (SUPPORTED_MIMES.includes(t)) return true;
+  return SUPPORTED_EXT_RE.test(file.name || '');
+}
 
 function tileSize(paper, orient) {
   const [w, h] = SHEET_PX[paper].portrait;
@@ -52,6 +59,7 @@ if (typeof document !== 'undefined') {
   const preview = document.getElementById('preview');
   const sheetInfo = document.getElementById('sheetInfo');
   const downloadBtn = document.getElementById('download');
+  fileInput.accept = SUPPORTED_MIMES.join(',');
 
   let bitmap = null; // decoded source image
   let composed = null; // { canvas, cols, rows, tw, th, orient, paper }
@@ -77,11 +85,6 @@ if (typeof document !== 'undefined') {
     span.className = 'error';
     span.textContent = msg;
     sheetInfo.appendChild(span);
-  }
-
-  function isUnsupported(file) {
-    if (/^image\/(tiff|vnd\.adobe\.photoshop|x-xcf)$/i.test(file.type)) return true;
-    return UNSUPPORTED_RE.test(file.name || '');
   }
 
   async function decodeFile(file) {
@@ -293,16 +296,16 @@ if (typeof document !== 'undefined') {
     composed = null;
     downloadBtn.disabled = true;
     if (!file) return;
-    if (isUnsupported(file)) {
+    if (!isSupportedFile(file)) {
       bitmap = null;
-      setError('Export a flattened PNG/JPEG/WebP first — this format is not supported in-browser');
+      setError('Export a flattened PNG/JPEG/GIF/WebP/BMP/AVIF first — this format is not supported in-browser');
       return;
     }
     try {
       bitmap = await decodeFile(file);
     } catch (_) {
       bitmap = null;
-      setError('Could not decode that image — try a flattened PNG/JPEG/WebP');
+      setError('Could not decode that image — try a flattened PNG/JPEG/GIF/WebP/BMP/AVIF');
       return;
     }
     recompute();
@@ -322,5 +325,5 @@ if (typeof document !== 'undefined') {
 
 // Export pure functions for headless verification (node/bun).
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { SHEET_PX, tileSize, gridFor, pickAuto, composeOffsets, BG };
+  module.exports = { SHEET_PX, tileSize, gridFor, pickAuto, composeOffsets, BG, isSupportedFile };
 }
