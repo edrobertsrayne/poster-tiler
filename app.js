@@ -1,4 +1,4 @@
-// Poster Tiler v1: native/unstretched fit only, 72 dpi fixed, sRGB-out. Mirror is an optional horizontal flip at compose time.
+// Poster Tiler v1: native/unstretched fit only, selectable DPI, sRGB-out. Mirror is an optional horizontal flip at compose time.
 'use strict';
 
 // Geometry constants: mm x 72 / 25.4 rounded. At 72 dpi 1 px = 1 pt,
@@ -22,6 +22,14 @@ function tileSize(paper, orient) {
   return orient === 'landscape' ? [h, w] : [w, h];
 }
 
+function tilePxForDpi(pt, dpi) { return Math.max(1, Math.round(pt * dpi / 72)); }
+
+function tilePixels(paper, orient, dpi) { const [w, h] = tileSize(paper, orient); return [tilePxForDpi(w, dpi), tilePxForDpi(h, dpi)]; }
+
+function printSizeIn(imgW, imgH, dpi) { return [imgW / dpi, imgH / dpi]; }
+
+function customDpiForWidth(imgW, widthIn) { return imgW / widthIn; }
+
 function gridFor(imgW, imgH, tw, th) {
   const cols = Math.ceil(imgW / tw);
   const rows = Math.ceil(imgH / th);
@@ -34,9 +42,9 @@ function fmtGrid(g) {
 
 // Auto-orientation = fewest sheets; tie-break by source aspect:
 // landscape if imgW >= imgH else portrait.
-function pickAuto(paper, imgW, imgH) {
-  const [ptw, pth] = tileSize(paper, 'portrait');
-  const [ltw, lth] = tileSize(paper, 'landscape');
+function pickAuto(paper, imgW, imgH, dpi = 72) {
+  const [ptw, pth] = tilePixels(paper, 'portrait', dpi);
+  const [ltw, lth] = tilePixels(paper, 'landscape', dpi);
   const p = gridFor(imgW, imgH, ptw, pth);
   const l = gridFor(imgW, imgH, ltw, lth);
   let winner;
@@ -78,6 +86,82 @@ if (typeof document !== 'undefined') {
     const el = document.getElementById('mirror');
     return !!(el && el.checked);
   }
+  let lastCustomEdit = 'w';
+
+  function toInches(v, unit) { return unit === 'cm' ? v / 2.54 : v; }
+
+  function selectedSizeMode() {
+    const el = document.querySelector('input[name="sizemode"]:checked');
+    return el ? el.value : 'dpi';
+  }
+
+  function dpiModeValue() {
+    const dpiEl = document.getElementById('dpi');
+    const sel = dpiEl ? dpiEl.value : '72';
+    if (sel !== 'custom') {
+      const dpi = parseFloat(sel);
+      return isFinite(dpi) ? dpi : 72;
+    }
+    const customEl = document.getElementById('dpiCustom');
+    const raw = customEl ? parseFloat(customEl.value) : NaN;
+    if (!isFinite(raw)) return 72;
+    return Math.min(1200, Math.max(10, raw));
+  }
+
+  function seedCustomInputs() {
+    if (!bitmap) return;
+    const unitEl = document.getElementById('customUnit');
+    const unit = unitEl ? unitEl.value : 'in';
+    const [wIn, hIn] = printSizeIn(bitmap.width, bitmap.height, dpiModeValue());
+    const factor = unit === 'cm' ? 2.54 : 1;
+    const wEl = document.getElementById('customW');
+    const hEl = document.getElementById('customH');
+    if (wEl) { wEl.value = (wIn * factor).toFixed(2); wEl.disabled = false; }
+    if (hEl) { hEl.value = (hIn * factor).toFixed(2); hEl.disabled = false; }
+  }
+  function effectiveDpi() {
+    const mode = selectedSizeMode();
+    if (mode === 'custom') {
+      if (!bitmap) return { error: 'No image loaded' };
+      const wEl = document.getElementById('customW');
+      const hEl = document.getElementById('customH');
+      const unitEl = document.getElementById('customUnit');
+      const unit = unitEl ? unitEl.value : 'in';
+      const w = wEl ? parseFloat(wEl.value) : NaN;
+      const h = hEl ? parseFloat(hEl.value) : NaN;
+      if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) {
+        return { error: 'Enter a custom width and height greater than 0' };
+      }
+      const wIn = toInches(w, unit);
+      if (!isFinite(wIn) || wIn <= 0) {
+        return { error: 'Enter a custom width and height greater than 0' };
+      }
+      const dpi = customDpiForWidth(bitmap.width, wIn);
+      if (!isFinite(dpi) || dpi < 10 || dpi > 1200) {
+        return { error: 'Effective DPI out of range (10–1200) — adjust the custom size' };
+      }
+      return { dpi };
+    }
+    const dpiEl = document.getElementById('dpi');
+    const sel = dpiEl ? dpiEl.value : '72';
+    if (sel !== 'custom') {
+      const dpi = parseFloat(sel);
+      if (isFinite(dpi)) return { dpi };
+      return { error: 'Select a DPI' };
+    }
+    const customEl = document.getElementById('dpiCustom');
+    const raw = customEl ? parseFloat(customEl.value) : NaN;
+    if (!isFinite(raw) || raw === 0 || customEl.value === '') {
+      if (customEl) customEl.setCustomValidity('Enter a DPI between 10 and 1200');
+      return { error: 'Enter a custom DPI between 10–1200' };
+    }
+    if (raw < 10 || raw > 1200) {
+      if (customEl) customEl.setCustomValidity('DPI out of range (10–1200)');
+      return { error: 'DPI out of range (10–1200)' };
+    }
+    if (customEl) customEl.setCustomValidity('');
+    return { dpi: raw };
+  }
 
   function setError(msg) {
     sheetInfo.innerHTML = '';
@@ -115,15 +199,26 @@ if (typeof document !== 'undefined') {
   function recompute() {
     if (!bitmap) {
       downloadBtn.disabled = true;
+      const ps = document.getElementById('printSize');
+      if (ps) ps.textContent = '—';
       return;
     }
+    const res = effectiveDpi();
+    if ('error' in res) {
+      composed = null;
+      downloadBtn.disabled = true;
+      setError(res.error);
+      return;
+    }
+    const dpi = res.dpi;
     const imgW = bitmap.width;
     const imgH = bitmap.height;
     const paper = selectedPaper();
     const mode = selectedOrientMode();
-    const { winner, portrait, landscape } = pickAuto(paper, imgW, imgH);
+    const { winner, portrait, landscape } = pickAuto(paper, imgW, imgH, dpi);
     const orient = mode === 'auto' ? winner : mode;
-    const [tw, th] = tileSize(paper, orient);
+    const [twPt, thPt] = tileSize(paper, orient);
+    const [tw, th] = tilePixels(paper, orient, dpi);
     const g = orient === 'portrait' ? portrait : landscape;
     const other = orient === 'portrait' ? landscape : portrait;
     const otherOrient = orient === 'portrait' ? 'landscape' : 'portrait';
@@ -185,10 +280,13 @@ if (typeof document !== 'undefined') {
       }
     }
 
-    composed = { canvas: clean, cols: g.cols, rows: g.rows, tw, th, orient, paper, mirror: selectedMirror() };
+    composed = { canvas: clean, cols: g.cols, rows: g.rows, tw, th, twPt, thPt, dpi, orient, paper, mirror: selectedMirror() };
 
     // Readout.
     sheetInfo.innerHTML = '';
+    const [pw, ph] = printSizeIn(imgW, imgH, dpi);
+    const ps = document.getElementById('printSize');
+    if (ps) ps.textContent = `${pw.toFixed(2)}×${ph.toFixed(2)} in @ ${dpi} dpi`;
     const autoLine = mode === 'auto'
       ? `Auto: ${orient} ${fmtGrid(g)}`
       : `${orient} ${fmtGrid(g)} (auto would be ${winner})`;
@@ -261,7 +359,7 @@ if (typeof document !== 'undefined') {
 
   async function downloadPdf() {
     if (!composed) return;
-    const { canvas, cols, rows, tw, th, orient, paper } = composed;
+    const { canvas, cols, rows, tw, th, twPt, thPt, orient, paper } = composed;
     const pdfDoc = await PDFLib.PDFDocument.create();
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
@@ -274,8 +372,8 @@ if (typeof document !== 'undefined') {
         tctx.drawImage(canvas, sx, sy, tw, th, 0, 0, tw, th);
         const pngBytes = await tileCanvasToPngBytes(tile);
         const img = await pdfDoc.embedPng(pngBytes);
-        const page = pdfDoc.addPage([tw, th]);
-        page.drawImage(img, { x: 0, y: 0, width: tw, height: th });
+        const page = pdfDoc.addPage([twPt, thPt]);
+        page.drawImage(img, { x: 0, y: 0, width: twPt, height: thPt });
       }
     }
     const bytes = await pdfDoc.save();
@@ -291,6 +389,44 @@ if (typeof document !== 'undefined') {
     }, 1000);
   }
 
+  function setCustomInputsDisabled(disabled) {
+    const wEl = document.getElementById('customW');
+    const hEl = document.getElementById('customH');
+    if (wEl) wEl.disabled = disabled;
+    if (hEl) hEl.disabled = disabled;
+  }
+
+  function syncSizeRows() {
+    const mode = selectedSizeMode();
+    const dpiRow = document.getElementById('dpiRow');
+    const customRow = document.getElementById('customRow');
+    if (dpiRow) dpiRow.hidden = mode !== 'dpi';
+    if (customRow) customRow.hidden = mode !== 'custom';
+    const dpiEl = document.getElementById('dpi');
+    const dpiCustom = document.getElementById('dpiCustom');
+    if (dpiEl && dpiCustom) dpiCustom.hidden = dpiEl.value !== 'custom';
+    if (mode === 'custom') {
+      if (bitmap) seedCustomInputs();
+      else setCustomInputsDisabled(true);
+    }
+  }
+
+  function onCustomInput(which) {
+    if (!bitmap) return;
+    lastCustomEdit = which;
+    const wEl = document.getElementById('customW');
+    const hEl = document.getElementById('customH');
+    const aspect = bitmap.width / bitmap.height;
+    if (which === 'w') {
+      const w = wEl ? parseFloat(wEl.value) : NaN;
+      if (hEl && isFinite(w) && w > 0) hEl.value = (w / aspect).toFixed(2);
+    } else {
+      const h = hEl ? parseFloat(hEl.value) : NaN;
+      if (wEl && isFinite(h) && h > 0) wEl.value = (h * aspect).toFixed(2);
+    }
+    recompute();
+  }
+
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files && fileInput.files[0];
     composed = null;
@@ -298,6 +434,7 @@ if (typeof document !== 'undefined') {
     if (!file) return;
     if (!isSupportedFile(file)) {
       bitmap = null;
+      setCustomInputsDisabled(true);
       setError('Export a flattened PNG/JPEG/GIF/WebP/BMP/AVIF first — this format is not supported in-browser');
       return;
     }
@@ -305,14 +442,40 @@ if (typeof document !== 'undefined') {
       bitmap = await decodeFile(file);
     } catch (_) {
       bitmap = null;
+      setCustomInputsDisabled(true);
       setError('Could not decode that image — try a flattened PNG/JPEG/GIF/WebP/BMP/AVIF');
       return;
     }
+    if (selectedSizeMode() === 'custom') seedCustomInputs();
+    else setCustomInputsDisabled(false);
     recompute();
   });
 
-  document.querySelectorAll('input[name="paper"], input[name="orient"], #mirror').forEach((el) => {
+  document.querySelectorAll('input[name="paper"], input[name="orient"], #mirror, #dpi, #dpiCustom, input[name="sizemode"], #customW, #customH, #customUnit').forEach((el) => {
     el.addEventListener('change', recompute);
+  });
+  document.querySelectorAll('input[name="sizemode"]').forEach((el) => {
+    el.addEventListener('change', syncSizeRows);
+  });
+  const dpiEl = document.getElementById('dpi');
+  if (dpiEl) dpiEl.addEventListener('change', syncSizeRows);
+  const customW = document.getElementById('customW');
+  const customH = document.getElementById('customH');
+  if (customW) customW.addEventListener('input', () => onCustomInput('w'));
+  if (customH) customH.addEventListener('input', () => onCustomInput('h'));
+  let lastUnit = 'cm';
+  const customUnit = document.getElementById('customUnit');
+  if (customUnit) customUnit.addEventListener('change', () => {
+    const next = customUnit.value;
+    const wEl = document.getElementById('customW');
+    const hEl = document.getElementById('customH');
+    // Convert displayed values so physical size is preserved across units.
+    const f = (next === 'cm' && lastUnit === 'in') ? 2.54 : (next === 'in' && lastUnit === 'cm') ? 1 / 2.54 : 1;
+    if (f !== 1) {
+      if (wEl && isFinite(parseFloat(wEl.value))) wEl.value = (parseFloat(wEl.value) * f).toFixed(2);
+      if (hEl && isFinite(parseFloat(hEl.value))) hEl.value = (parseFloat(hEl.value) * f).toFixed(2);
+    }
+    lastUnit = next;
   });
   downloadBtn.addEventListener('click', downloadPdf);
 
@@ -325,5 +488,5 @@ if (typeof document !== 'undefined') {
 
 // Export pure functions for headless verification (node/bun).
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { SHEET_PX, tileSize, gridFor, pickAuto, composeOffsets, BG, isSupportedFile };
+  module.exports = { SHEET_PX, tileSize, gridFor, pickAuto, composeOffsets, BG, isSupportedFile, tilePxForDpi, tilePixels, printSizeIn, customDpiForWidth };
 }
