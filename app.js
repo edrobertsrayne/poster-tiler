@@ -37,7 +37,7 @@ function gridFor(imgW, imgH, tw, th) {
 }
 
 function fmtGrid(g) {
-  return `${g.cols}×${g.rows} = ${g.sheets} sheet${g.sheets === 1 ? '' : 's'}`;
+  return `${g.cols}\u00D7${g.rows} = ${g.sheets} sheet${g.sheets === 1 ? '' : 's'}`;
 }
 
 // Auto-orientation = fewest sheets; tie-break by source aspect:
@@ -61,115 +61,114 @@ function composeOffsets(canvasW, canvasH, imgW, imgH) {
   };
 }
 
-function toInches(v, unit) { return unit === 'cm' ? v / 2.54 : v; }
-
 // ---- browser wiring (skipped under node/bun test harness) ----
 if (typeof document !== 'undefined') {
   const fileInput = document.getElementById('file');
-  const dropZone = document.getElementById('drop');
-  const fileLabelEl = document.getElementById('fileLabel');
   const preview = document.getElementById('preview');
-  const previewPlaceholder = document.getElementById('previewPlaceholder');
-  const sheetLineEl = document.getElementById('sheetLine');
-  const sizeLineEl = document.getElementById('sizeLine');
-  const errorMsgEl = document.getElementById('errorMsg');
-  const warnMsgEl = document.getElementById('warnMsg');
+  const sheetInfo = document.getElementById('sheetInfo');
   const downloadBtn = document.getElementById('download');
-  const paperSeg = document.getElementById('paperSeg');
-  const orientSeg = document.getElementById('orientSeg');
-  const sizemodeSeg = document.getElementById('sizemodeSeg');
-  const dpiRow = document.getElementById('dpiRow');
-  const customRow = document.getElementById('customRow');
-  const dpiEl = document.getElementById('dpi');
-  const dpiCustomEl = document.getElementById('dpiCustom');
-  const customWEl = document.getElementById('customW');
-  const customHEl = document.getElementById('customH');
-  const customUnitEl = document.getElementById('customUnit');
-  const mirrorEl = document.getElementById('mirror');
   fileInput.accept = SUPPORTED_MIMES.join(',');
 
   let bitmap = null; // decoded source image
   let composed = null; // { canvas, cols, rows, tw, th, orient, paper }
 
-  const state = { paper: 'A4', orient: 'auto', sizemode: 'dpi', customUnit: 'cm' };
-
-  function syncSeg(container, value) {
-    container.querySelectorAll('button').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.value === value);
-    });
+  function selectedPaper() {
+    const el = document.querySelector('input[name="paper"]:checked');
+    return el ? el.value : 'A4';
   }
 
-  function wireSeg(container, onPick) {
-    container.querySelectorAll('button').forEach((btn) => {
-      btn.addEventListener('click', () => onPick(btn.dataset.value));
-    });
+  function selectedOrientMode() {
+    const el = document.querySelector('input[name="orient"]:checked');
+    return el ? el.value : 'auto';
+  }
+
+  function selectedMirror() {
+    const el = document.getElementById('mirror');
+    return !!(el && el.checked);
+  }
+  let lastCustomEdit = 'w';
+
+  function toInches(v, unit) { return unit === 'cm' ? v / 2.54 : v; }
+
+  function selectedSizeMode() {
+    const el = document.querySelector('input[name="sizemode"]:checked');
+    return el ? el.value : 'dpi';
   }
 
   function dpiModeValue() {
-    const sel = dpiEl.value;
+    const dpiEl = document.getElementById('dpi');
+    const sel = dpiEl ? dpiEl.value : '72';
     if (sel !== 'custom') {
       const dpi = parseFloat(sel);
       return isFinite(dpi) ? dpi : 72;
     }
-    const raw = parseFloat(dpiCustomEl.value);
+    const customEl = document.getElementById('dpiCustom');
+    const raw = customEl ? parseFloat(customEl.value) : NaN;
     if (!isFinite(raw)) return 72;
     return Math.min(1200, Math.max(10, raw));
   }
 
   function seedCustomInputs() {
     if (!bitmap) return;
-    const unit = customUnitEl.value;
+    const unitEl = document.getElementById('customUnit');
+    const unit = unitEl ? unitEl.value : 'in';
     const [wIn, hIn] = printSizeIn(bitmap.width, bitmap.height, dpiModeValue());
     const factor = unit === 'cm' ? 2.54 : 1;
-    customWEl.value = (wIn * factor).toFixed(2);
-    customHEl.value = (hIn * factor).toFixed(2);
-    customWEl.disabled = false;
-    customHEl.disabled = false;
+    const wEl = document.getElementById('customW');
+    const hEl = document.getElementById('customH');
+    if (wEl) { wEl.value = (wIn * factor).toFixed(2); wEl.disabled = false; }
+    if (hEl) { hEl.value = (hIn * factor).toFixed(2); hEl.disabled = false; }
   }
-
   function effectiveDpi() {
-    if (state.sizemode === 'custom') {
+    const mode = selectedSizeMode();
+    if (mode === 'custom') {
       if (!bitmap) return { error: 'No image loaded' };
-      const unit = customUnitEl.value;
-      const w = parseFloat(customWEl.value);
-      const h = parseFloat(customHEl.value);
+      const wEl = document.getElementById('customW');
+      const hEl = document.getElementById('customH');
+      const unitEl = document.getElementById('customUnit');
+      const unit = unitEl ? unitEl.value : 'in';
+      const w = wEl ? parseFloat(wEl.value) : NaN;
+      const h = hEl ? parseFloat(hEl.value) : NaN;
       if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) {
-        return { error: 'Enter a width and height greater than 0' };
+        return { error: 'Enter a custom width and height greater than 0' };
       }
       const wIn = toInches(w, unit);
       if (!isFinite(wIn) || wIn <= 0) {
-        return { error: 'Enter a width and height greater than 0' };
+        return { error: 'Enter a custom width and height greater than 0' };
       }
       const dpi = customDpiForWidth(bitmap.width, wIn);
       if (!isFinite(dpi) || dpi < 10 || dpi > 1200) {
-        return { error: 'That size needs a resolution outside 10–1200 dpi — try a different width' };
+        return { error: 'Effective DPI out of range (10–1200) — adjust the custom size' };
       }
       return { dpi };
     }
-    const sel = dpiEl.value;
+    const dpiEl = document.getElementById('dpi');
+    const sel = dpiEl ? dpiEl.value : '72';
     if (sel !== 'custom') {
       const dpi = parseFloat(sel);
       if (isFinite(dpi)) return { dpi };
       return { error: 'Select a DPI' };
     }
-    const raw = parseFloat(dpiCustomEl.value);
-    if (!isFinite(raw) || raw === 0 || dpiCustomEl.value === '') {
-      return { error: 'Enter a DPI between 10 and 1200' };
+    const customEl = document.getElementById('dpiCustom');
+    const raw = customEl ? parseFloat(customEl.value) : NaN;
+    if (!isFinite(raw) || raw === 0 || customEl.value === '') {
+      if (customEl) customEl.setCustomValidity('Enter a DPI between 10 and 1200');
+      return { error: 'Enter a custom DPI between 10–1200' };
     }
     if (raw < 10 || raw > 1200) {
+      if (customEl) customEl.setCustomValidity('DPI out of range (10–1200)');
       return { error: 'DPI out of range (10–1200)' };
     }
+    if (customEl) customEl.setCustomValidity('');
     return { dpi: raw };
   }
 
-  function showError(msg) {
-    errorMsgEl.textContent = msg;
-    errorMsgEl.hidden = !msg;
-  }
-
-  function showWarning(msg) {
-    warnMsgEl.textContent = msg;
-    warnMsgEl.hidden = !msg;
+  function setError(msg) {
+    sheetInfo.innerHTML = '';
+    const span = document.createElement('span');
+    span.className = 'error';
+    span.textContent = msg;
+    sheetInfo.appendChild(span);
   }
 
   async function decodeFile(file) {
@@ -197,55 +196,32 @@ if (typeof document !== 'undefined') {
     }
   }
 
-  // Whitest tile of the composed canvas, via sparse sampling (exact for
-  // solid padding; strides keep large grids fast).
-  function blankestTile(ctx, canvasW, canvasH, tw, th, cols, rows) {
-    const img = ctx.getImageData(0, 0, canvasW, canvasH).data;
-    let worst = { fraction: -1, entirelyBlank: false, row: 0, col: 0 };
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        let white = 0;
-        let total = 0;
-        for (let y = r * th; y < (r + 1) * th; y += 4) {
-          for (let x = c * tw; x < (c + 1) * tw; x += 4) {
-            const i = (y * canvasW + x) * 4;
-            total++;
-            if (img[i] === 255 && img[i + 1] === 255 && img[i + 2] === 255) white++;
-          }
-        }
-        const fraction = total === 0 ? 0 : white / total;
-        if (fraction > worst.fraction) {
-          worst = { fraction, entirelyBlank: fraction === 1, row: r, col: c };
-        }
-      }
-    }
-    return worst;
-  }
-
   function recompute() {
     if (!bitmap) {
       downloadBtn.disabled = true;
+      const ps = document.getElementById('printSize');
+      if (ps) ps.textContent = '—';
       return;
     }
     const res = effectiveDpi();
     if ('error' in res) {
       composed = null;
       downloadBtn.disabled = true;
-      showError(res.error);
-      showWarning('');
+      setError(res.error);
       return;
     }
-    showError('');
     const dpi = res.dpi;
     const imgW = bitmap.width;
     const imgH = bitmap.height;
-    const paper = state.paper;
-    const mode = state.orient;
+    const paper = selectedPaper();
+    const mode = selectedOrientMode();
     const { winner, portrait, landscape } = pickAuto(paper, imgW, imgH, dpi);
     const orient = mode === 'auto' ? winner : mode;
     const [twPt, thPt] = tileSize(paper, orient);
     const [tw, th] = tilePixels(paper, orient, dpi);
     const g = orient === 'portrait' ? portrait : landscape;
+    const other = orient === 'portrait' ? landscape : portrait;
+    const otherOrient = orient === 'portrait' ? 'landscape' : 'portrait';
 
     const canvasW = g.cols * tw;
     const canvasH = g.rows * th;
@@ -253,11 +229,11 @@ if (typeof document !== 'undefined') {
     const clean = document.createElement('canvas');
     clean.width = canvasW;
     clean.height = canvasH;
-    const cleanCtx = clean.getContext('2d', { willReadFrequently: true });
+    const cleanCtx = clean.getContext('2d');
     cleanCtx.fillStyle = BG;
     cleanCtx.fillRect(0, 0, canvasW, canvasH);
     const { dx, dy } = composeOffsets(canvasW, canvasH, imgW, imgH);
-    if (mirrorEl.checked) {
+    if (selectedMirror()) {
       cleanCtx.save();
       cleanCtx.translate(canvasW, 0);
       cleanCtx.scale(-1, 1);
@@ -270,8 +246,6 @@ if (typeof document !== 'undefined') {
     // Preview = clean compose + grid overlay (overlay never enters the PDF).
     preview.width = canvasW;
     preview.height = canvasH;
-    preview.style.display = 'block';
-    previewPlaceholder.hidden = true;
     const ctx = preview.getContext('2d');
     ctx.drawImage(clean, 0, 0);
     const cutW = Math.max(2, Math.round(Math.min(tw, th) / 200));
@@ -306,24 +280,66 @@ if (typeof document !== 'undefined') {
       }
     }
 
-    composed = { canvas: clean, cols: g.cols, rows: g.rows, tw, th, twPt, thPt, dpi, orient, paper, mirror: mirrorEl.checked };
+    composed = { canvas: clean, cols: g.cols, rows: g.rows, tw, th, twPt, thPt, dpi, orient, paper, mirror: selectedMirror() };
 
     // Readout.
+    sheetInfo.innerHTML = '';
     const [pw, ph] = printSizeIn(imgW, imgH, dpi);
-    const cm = (v) => (v * 2.54).toFixed(0);
-    sheetLineEl.textContent = `${fmtGrid(g)} of ${paper} ${orient}`;
-    sizeLineEl.textContent = `${pw.toFixed(1)}×${ph.toFixed(1)} in · ${cm(pw)}×${cm(ph)} cm · ${Math.round(dpi)} dpi`;
+    const ps = document.getElementById('printSize');
+    if (ps) ps.textContent = `${pw.toFixed(2)}×${ph.toFixed(2)} in @ ${dpi} dpi`;
+    const autoLine = mode === 'auto'
+      ? `Auto: ${orient} ${fmtGrid(g)}`
+      : `${orient} ${fmtGrid(g)} (auto would be ${winner})`;
+    const otherLine = `${otherOrient} would be ${fmtGrid(other)}`;
+    const p1 = document.createElement('div');
+    p1.textContent = autoLine;
+    const p2 = document.createElement('div');
+    p2.textContent = `(${otherLine})`;
+    sheetInfo.appendChild(p1);
+    sheetInfo.appendChild(p2);
 
     // Blank-tile warning (never silently blank): sample each tile of the clean
     // compose and flag one that is entirely padding.
     const blankest = blankestTile(cleanCtx, canvasW, canvasH, tw, th, g.cols, g.rows);
-    showWarning(blankest.entirelyBlank
-      ? `Sheet r${blankest.row}c${blankest.col} comes out completely blank — the other direction may suit this picture better.`
-      : '');
+    if (blankest.entirelyBlank) {
+      const warn = document.createElement('div');
+      warn.className = 'warning';
+      warn.textContent = `This fit leaves tile r${blankest.row}c${blankest.col} entirely blank — consider the other orientation`;
+      sheetInfo.appendChild(warn);
+    }
 
-    const noPdf = typeof PDFLib === 'undefined';
-    downloadBtn.disabled = noPdf;
-    if (noPdf) showError('PDF library failed to load — check network and reload');
+    downloadBtn.disabled = typeof PDFLib === 'undefined';
+    if (typeof PDFLib === 'undefined') {
+      const err = document.createElement('div');
+      err.className = 'error';
+      err.textContent = 'PDF library failed to load — check network and reload';
+      sheetInfo.appendChild(err);
+    }
+  }
+
+  // Whitest tile of the composed canvas, via sparse sampling (exact for
+  // solid padding; strides keep large grids fast).
+  function blankestTile(ctx, canvasW, canvasH, tw, th, cols, rows) {
+    const img = ctx.getImageData(0, 0, canvasW, canvasH).data;
+    let worst = { fraction: -1, entirelyBlank: false, row: 0, col: 0 };
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        let white = 0;
+        let total = 0;
+        for (let y = r * th; y < (r + 1) * th; y += 4) {
+          for (let x = c * tw; x < (c + 1) * tw; x += 4) {
+            const i = (y * canvasW + x) * 4;
+            total++;
+            if (img[i] === 255 && img[i + 1] === 255 && img[i + 2] === 255) white++;
+          }
+        }
+        const fraction = total === 0 ? 0 : white / total;
+        if (fraction > worst.fraction) {
+          worst = { fraction, entirelyBlank: fraction === 1, row: r, col: c };
+        }
+      }
+    }
+    return worst;
   }
 
   function tileCanvasToPngBytes(tile) {
@@ -373,96 +389,94 @@ if (typeof document !== 'undefined') {
     }, 1000);
   }
 
+  function setCustomInputsDisabled(disabled) {
+    const wEl = document.getElementById('customW');
+    const hEl = document.getElementById('customH');
+    if (wEl) wEl.disabled = disabled;
+    if (hEl) hEl.disabled = disabled;
+  }
+
   function syncSizeRows() {
-    dpiRow.hidden = state.sizemode !== 'dpi';
-    customRow.hidden = state.sizemode !== 'custom';
-    dpiCustomEl.hidden = dpiEl.value !== 'custom';
-    if (state.sizemode === 'custom') {
+    const mode = selectedSizeMode();
+    const dpiRow = document.getElementById('dpiRow');
+    const customRow = document.getElementById('customRow');
+    if (dpiRow) dpiRow.hidden = mode !== 'dpi';
+    if (customRow) customRow.hidden = mode !== 'custom';
+    const dpiEl = document.getElementById('dpi');
+    const dpiCustom = document.getElementById('dpiCustom');
+    if (dpiEl && dpiCustom) dpiCustom.hidden = dpiEl.value !== 'custom';
+    if (mode === 'custom') {
       if (bitmap) seedCustomInputs();
-      else { customWEl.disabled = true; customHEl.disabled = true; }
+      else setCustomInputsDisabled(true);
     }
   }
 
-  async function acceptFile(file) {
+  function onCustomInput(which) {
+    if (!bitmap) return;
+    lastCustomEdit = which;
+    const wEl = document.getElementById('customW');
+    const hEl = document.getElementById('customH');
+    const aspect = bitmap.width / bitmap.height;
+    if (which === 'w') {
+      const w = wEl ? parseFloat(wEl.value) : NaN;
+      if (hEl && isFinite(w) && w > 0) hEl.value = (w / aspect).toFixed(2);
+    } else {
+      const h = hEl ? parseFloat(hEl.value) : NaN;
+      if (wEl && isFinite(h) && h > 0) wEl.value = (h * aspect).toFixed(2);
+    }
+    recompute();
+  }
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files && fileInput.files[0];
     composed = null;
     downloadBtn.disabled = true;
     if (!file) return;
     if (!isSupportedFile(file)) {
       bitmap = null;
-      customWEl.disabled = true;
-      customHEl.disabled = true;
-      showError('That file type can’t be read here — export a flat PNG or JPEG first.');
+      setCustomInputsDisabled(true);
+      setError('Export a flattened PNG/JPEG/GIF/WebP/BMP/AVIF first — this format is not supported in-browser');
       return;
     }
     try {
       bitmap = await decodeFile(file);
     } catch (_) {
       bitmap = null;
-      customWEl.disabled = true;
-      customHEl.disabled = true;
-      showError('That picture couldn’t be opened — try a flat PNG or JPEG.');
+      setCustomInputsDisabled(true);
+      setError('Could not decode that image — try a flattened PNG/JPEG/GIF/WebP/BMP/AVIF');
       return;
     }
-    fileLabelEl.textContent = file.name;
-    showError('');
-    if (state.sizemode === 'custom') seedCustomInputs();
-    else { customWEl.disabled = false; customHEl.disabled = false; }
-    recompute();
-  }
-
-  wireSeg(paperSeg, (value) => { state.paper = value; syncSeg(paperSeg, value); recompute(); });
-  wireSeg(orientSeg, (value) => { state.orient = value; syncSeg(orientSeg, value); recompute(); });
-  wireSeg(sizemodeSeg, (value) => {
-    state.sizemode = value;
-    syncSeg(sizemodeSeg, value);
-    syncSizeRows();
+    if (selectedSizeMode() === 'custom') seedCustomInputs();
+    else setCustomInputsDisabled(false);
     recompute();
   });
 
-  fileInput.addEventListener('change', () => acceptFile(fileInput.files && fileInput.files[0]));
-
-  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragging'); });
-  dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('dragging'); });
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragging');
-    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) acceptFile(f);
+  document.querySelectorAll('input[name="paper"], input[name="orient"], #mirror, #dpi, #dpiCustom, input[name="sizemode"], #customW, #customH, #customUnit').forEach((el) => {
+    el.addEventListener('change', recompute);
   });
-  // Guard the page itself so a stray drop can't navigate away.
-  window.addEventListener('dragover', (e) => e.preventDefault());
-  window.addEventListener('drop', (e) => e.preventDefault());
-
-  dpiEl.addEventListener('change', () => { syncSizeRows(); recompute(); });
-  dpiCustomEl.addEventListener('change', recompute);
-  customUnitEl.addEventListener('change', () => {
-    const next = customUnitEl.value;
-    const prev = state.customUnit;
-    const f = (next === 'cm' && prev === 'in') ? 2.54 : (next === 'in' && prev === 'cm') ? 1 / 2.54 : 1;
+  document.querySelectorAll('input[name="sizemode"]').forEach((el) => {
+    el.addEventListener('change', syncSizeRows);
+  });
+  const dpiEl = document.getElementById('dpi');
+  if (dpiEl) dpiEl.addEventListener('change', syncSizeRows);
+  const customW = document.getElementById('customW');
+  const customH = document.getElementById('customH');
+  if (customW) customW.addEventListener('input', () => onCustomInput('w'));
+  if (customH) customH.addEventListener('input', () => onCustomInput('h'));
+  let lastUnit = 'cm';
+  const customUnit = document.getElementById('customUnit');
+  if (customUnit) customUnit.addEventListener('change', () => {
+    const next = customUnit.value;
+    const wEl = document.getElementById('customW');
+    const hEl = document.getElementById('customH');
+    // Convert displayed values so physical size is preserved across units.
+    const f = (next === 'cm' && lastUnit === 'in') ? 2.54 : (next === 'in' && lastUnit === 'cm') ? 1 / 2.54 : 1;
     if (f !== 1) {
-      const w = parseFloat(customWEl.value);
-      const h = parseFloat(customHEl.value);
-      if (isFinite(w)) customWEl.value = (w * f).toFixed(2);
-      if (isFinite(h)) customHEl.value = (h * f).toFixed(2);
+      if (wEl && isFinite(parseFloat(wEl.value))) wEl.value = (parseFloat(wEl.value) * f).toFixed(2);
+      if (hEl && isFinite(parseFloat(hEl.value))) hEl.value = (parseFloat(hEl.value) * f).toFixed(2);
     }
-    state.customUnit = next;
-    recompute();
+    lastUnit = next;
   });
-  customWEl.addEventListener('input', () => {
-    if (!bitmap) return;
-    const w = parseFloat(customWEl.value);
-    const aspect = bitmap.width / bitmap.height;
-    if (isFinite(w) && w > 0) customHEl.value = (w / aspect).toFixed(2);
-    recompute();
-  });
-  customHEl.addEventListener('input', () => {
-    if (!bitmap) return;
-    const h = parseFloat(customHEl.value);
-    const aspect = bitmap.width / bitmap.height;
-    if (isFinite(h) && h > 0) customWEl.value = (h * aspect).toFixed(2);
-    recompute();
-  });
-  mirrorEl.addEventListener('change', recompute);
   downloadBtn.addEventListener('click', downloadPdf);
 
   if (typeof PDFLib === 'undefined') {

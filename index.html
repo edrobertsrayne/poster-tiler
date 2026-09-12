@@ -4,203 +4,84 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Poster Tiler</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: light; }
-  body {
-    margin: 0;
-    font-family: 'Archivo', system-ui, sans-serif;
-    color: #1a1613;
-    background: #f5ead6;
-  }
-  .wrap { max-width: 800px; margin: 0 auto; padding: 56px 24px 96px; }
-  h1 {
-    font-size: clamp(40px, 8vw, 68px);
-    font-weight: 800;
-    line-height: 0.98;
-    letter-spacing: -0.03em;
-    text-transform: uppercase;
-    margin: 0 0 16px;
-    max-width: 14ch;
-  }
-  .lede { font-size: 17px; line-height: 1.5; color: #4a3f35; margin: 0 0 48px; max-width: 52ch; }
-  .steps { display: grid; gap: 28px; }
-  .step { border: 2px solid #1a1613; background: #fffaf0; box-shadow: 6px 6px 0 #1a1613; }
-  .step-head {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 20px; background: #1a1613; color: #f5ead6;
-  }
-  .step.final .step-head { background: #d94f1e; color: #fffaf0; }
-  .step-num { font-size: 15px; font-weight: 800; }
-  .step-title { font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-  .step-body { padding: 20px; }
-  .step-body p { font-size: 14px; line-height: 1.5; color: #4a3f35; margin: 0 0 14px; }
-  .drop {
-    display: flex; align-items: center; justify-content: center;
-    padding: 26px; border: 2px dashed #c4b49c; background: #f5ead6;
-    cursor: pointer; font-size: 15px; font-weight: 600; color: #4a3f35;
-  }
-  .drop.dragging { border-color: #d94f1e; background: #fdf1e8; color: #d94f1e; }
-  .row { display: flex; gap: 28px; flex-wrap: wrap; }
-  .field-label {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
-    color: #7a6a58; margin-bottom: 8px;
-  }
-  .seg { display: flex; gap: 8px; }
-  .seg button {
-    padding: 9px 16px; border: 2px solid #1a1613; font-family: inherit;
-    font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-    cursor: pointer; background: #fffaf0; color: #1a1613;
-  }
-  .seg button.active { background: #d94f1e; color: #fffaf0; border-color: #1a1613; }
-  select, input[type=number] {
-    font-family: inherit; padding: 9px 12px; border: 2px solid #1a1613;
-    background: #fffaf0; font-size: 14px; color: #1a1613;
-  }
-  input[type=number] { width: 104px; }
-  #dpiCustom { width: 96px; }
-  .sizemode-body { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .mirror-label {
-    display: inline-flex; align-items: center; gap: 9px; margin-top: 18px;
-    font-size: 14px; color: #4a3f35; cursor: pointer;
-  }
-  .mirror-label input { width: 16px; height: 16px; accent-color: #d94f1e; }
-  .preview-box {
-    border: 2px solid #1a1613; background: #fffaf0; padding: 12px;
-    min-height: 180px; display: grid; place-items: center;
-  }
-  .preview-placeholder { font-size: 13px; font-weight: 500; color: #9a8b78; }
-  canvas#preview { max-width: 100%; max-height: 520px; display: none; }
-  .result-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 18px; }
-  #download {
-    padding: 14px 28px; border: 2px solid #1a1613; font-family: inherit;
-    font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
-    color: #fffaf0; background: #1a1613; box-shadow: 4px 4px 0 #d94f1e; cursor: pointer;
-  }
-  #download:disabled { background: #b3a898; cursor: not-allowed; }
-  #sheetInfo { font-size: 13px; font-weight: 500; line-height: 1.6; color: #4a3f35; }
-  .error { color: #b3341c; font-size: 14px; margin: 12px 0 0; }
-  .warning { color: #8a6400; font-size: 14px; margin: 12px 0 0; }
-  .callout {
-    font-size: 14px; line-height: 1.5; margin: 20px 0 0; padding: 14px 16px;
-    border: 2px solid #1a1613; background: #f5ead6; color: #1a1613;
-  }
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  fieldset { margin: 1rem 0; }
+  #preview { max-width: 100%; border: 1px solid #999; display: block; margin-top: 1rem; }
+  #sheetInfo { white-space: pre-wrap; margin-top: 1rem; }
+  .error { color: #a00; }
+  .warning { color: #905400; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Big picture, small printer</h1>
-  <p class="lede">Your picture gets cut across ordinary sheets that you tape back together. Nothing is uploaded — it all happens on this page.</p>
+<h1>Poster Tiler</h1>
 
-  <div class="steps">
-    <div class="step">
-      <div class="step-head">
-        <span class="step-num">01</span>
-        <span class="step-title">Choose your picture</span>
-      </div>
-      <div class="step-body">
-        <p>A flat PNG or JPEG works best. Layered files need exporting first.</p>
-        <label class="drop" id="drop">
-          <input type="file" id="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif" style="display: none;">
-          <span id="fileLabel">Choose a picture, or drop one here</span>
-        </label>
-      </div>
-    </div>
+<section aria-label="How to use">
+  <h2>How to use</h2>
+  <ol>
+    <li><strong>Choose your picture</strong> using the file button above — a PNG or JPEG export of your artwork works best.</li>
+    <li><strong>Pick paper and direction.</strong> Leave Orientation on Auto unless you know you want tall (Portrait) or wide (Landscape).</li>
+    <li><strong>Pick a size.</strong> Leave it on DPI for the default size, or choose Custom size and type how big you want the finished poster — the other side adjusts itself so your art never stretches.</li>
+    <li><strong>Press Download PDF</strong>, then print every page at <strong>100% / Actual size</strong> — never “Fit to page”, or the sheets won’t line up.</li>
+    <li><strong>Tape the sheets together</strong> following the little labels on the preview (top-left sheet is r0c0, next to it r0c1, and so on).</li>
+  </ol>
+  <p>Higher DPI means a smaller but sharper poster; if the Download button stays greyed out, the red message tells you what to fix.</p>
+</section>
 
-    <div class="step">
-      <div class="step-head">
-        <span class="step-num">02</span>
-        <span class="step-title">Pick paper and direction</span>
-      </div>
-      <div class="step-body">
-        <p>Leave direction on Auto unless you want the sheets specifically tall or wide.</p>
-        <div class="row">
-          <div>
-            <div class="field-label">Paper</div>
-            <div class="seg" id="paperSeg">
-              <button type="button" data-value="A4" class="active">A4</button>
-              <button type="button" data-value="A3">A3</button>
-            </div>
-          </div>
-          <div>
-            <div class="field-label">Direction</div>
-            <div class="seg" id="orientSeg">
-              <button type="button" data-value="auto" class="active">Auto</button>
-              <button type="button" data-value="portrait">Tall</button>
-              <button type="button" data-value="landscape">Wide</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+<input type="file" id="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif">
 
-    <div class="step">
-      <div class="step-head">
-        <span class="step-num">03</span>
-        <span class="step-title">Choose how big it ends up</span>
-      </div>
-      <div class="step-body">
-        <p>Type a finished width and the height follows, so your art is never stretched. Or set DPI instead — higher DPI means a smaller, sharper poster.</p>
-        <div class="seg" id="sizemodeSeg" style="margin-bottom: 14px;">
-          <button type="button" data-value="custom">Finished size</button>
-          <button type="button" data-value="dpi" class="active">DPI</button>
-        </div>
-        <div id="dpiRow" class="sizemode-body">
-          <select id="dpi">
-            <option value="72" selected>72 dpi</option>
-            <option value="100">100 dpi</option>
-            <option value="150">150 dpi</option>
-            <option value="200">200 dpi</option>
-            <option value="300">300 dpi</option>
-            <option value="custom">Custom…</option>
-          </select>
-          <input id="dpiCustom" type="number" min="10" max="1200" step="1" value="72" hidden>
-        </div>
-        <div id="customRow" class="sizemode-body" hidden>
-          <input id="customW" type="number" min="0.1" step="0.1" disabled>
-          <span style="color: #7a6a58;">×</span>
-          <input id="customH" type="number" min="0.1" step="0.1" disabled>
-          <select id="customUnit">
-            <option value="in">inches</option>
-            <option value="cm" selected>cm</option>
-          </select>
-        </div>
-        <label class="mirror-label">
-          <input type="checkbox" id="mirror">
-          Flip it left-to-right (for iron-on transfers and window vinyl)
-        </label>
-      </div>
-    </div>
+<fieldset>
+  <legend>Paper size</legend>
+  <label><input type="radio" name="paper" value="A4" checked> A4</label>
+  <label><input type="radio" name="paper" value="A3"> A3</label>
+</fieldset>
 
-    <div class="step final">
-      <div class="step-head">
-        <span class="step-num">04</span>
-        <span class="step-title">Check the layout, then print</span>
-      </div>
-      <div class="step-body">
-        <p>Red lines show where the sheets meet. Each sheet is labelled — tape r0c0 top-left, r0c1 next to it.</p>
-        <div class="preview-box">
-          <span class="preview-placeholder" id="previewPlaceholder">preview appears once you choose a picture</span>
-          <canvas id="preview"></canvas>
-        </div>
-        <div class="result-row">
-          <button id="download" disabled>Download PDF</button>
-          <div id="sheetInfo">
-            <div id="sheetLine">No picture yet</div>
-            <div id="sizeLine"></div>
-          </div>
-        </div>
-        <p id="errorMsg" class="error" hidden></p>
-        <p id="warnMsg" class="warning" hidden></p>
-        <p class="callout">In your printer dialog choose <strong>100% / Actual size</strong>. &ldquo;Fit to page&rdquo; shrinks each sheet slightly and the picture will not line up.</p>
-      </div>
-    </div>
+<fieldset>
+  <legend>Orientation</legend>
+  <label><input type="radio" name="orient" value="auto" checked> Auto</label>
+  <label><input type="radio" name="orient" value="portrait"> Portrait</label>
+  <label><input type="radio" name="orient" value="landscape"> Landscape</label>
+</fieldset>
+<fieldset>
+  <legend>Output size</legend>
+  <div>Print size: <span id="printSize">—</span></div>
+  <label><input type="radio" name="sizemode" value="dpi" checked> DPI</label>
+  <label><input type="radio" name="sizemode" value="custom"> Custom size</label>
+  <div id="dpiRow">
+    <label>DPI <select id="dpi">
+      <option value="72" selected>72</option>
+      <option value="100">100</option>
+      <option value="150">150</option>
+      <option value="200">200</option>
+      <option value="300">300</option>
+      <option value="custom">Custom…</option>
+    </select></label>
+    <input id="dpiCustom" type="number" min="10" max="1200" step="1" value="72" hidden>
   </div>
+  <div id="customRow" hidden>
+    <label>Width <input id="customW" type="number" min="0.1" step="0.1"></label>
+    <span>×</span>
+    <label>Height <input id="customH" type="number" min="0.1" step="0.1"></label>
+    <select id="customUnit">
+      <option value="in">in</option>
+      <option value="cm" selected>cm</option>
+    </select>
+  </div>
+</fieldset>
+<fieldset>
+  <legend>Options</legend>
+  <label><input type="checkbox" id="mirror"> Mirror image horizontally</label>
+</fieldset>
+
+<canvas id="preview"></canvas>
+<div id="sheetInfo"></div>
+<button id="download" disabled>Download PDF</button>
+
+<div id="guidance">
+  <p>Print at 100% / Actual size — never Fit to page</p>
 </div>
 
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>
