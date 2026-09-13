@@ -113,20 +113,20 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Big picture, small printer</h1>
-  <p class="lede">Your picture gets cut across ordinary sheets that you tape back together. Nothing is uploaded — it all happens on this page.</p>
+  <h1>Big window, small printer</h1>
+  <p class="lede">Your image gets cut across ordinary sheets of paper that you tape back together. Everything is done on your computer, no artwork is saved anywhere else.</p>
 
   <div class="steps">
     <div class="step">
       <div class="step-head">
         <span class="step-num">01</span>
-        <span class="step-title">Choose your picture</span>
+        <span class="step-title">Choose your image</span>
       </div>
       <div class="step-body">
-        <p>A flat PNG or JPEG works best. Layered files need exporting first.</p>
+        <p>A flat PNG or JPEG works best. Photoshop, Procreate and other formats with layers need flattening first..</p>
         <label class="drop" id="drop">
           <input type="file" id="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif" style="display: none;">
-          <span id="fileLabel">Choose a picture, or drop one here</span>
+          <span id="fileLabel">Choose an image, or drop and drop one here</span>
         </label>
       </div>
     </div>
@@ -137,7 +137,7 @@
         <span class="step-title">Pick paper and direction</span>
       </div>
       <div class="step-body">
-        <p>Leave direction on Auto unless you want the sheets specifically tall or wide.</p>
+        <p>Leave direction on Auto for the most paper-efficient way of printing.</p>
         <div class="row">
           <div>
             <div class="field-label">Paper</div>
@@ -166,10 +166,10 @@
       <div class="step-body">
         <p>Type a finished width and the height follows, so your art is never stretched. Or set DPI instead — higher DPI means a smaller, sharper poster.</p>
         <div class="seg" id="sizemodeSeg" style="margin-bottom: 14px;">
-          <button type="button" data-value="custom">Finished size</button>
-          <button type="button" data-value="dpi" class="active">DPI</button>
+          <button type="button" data-value="custom" class="active">Finished size</button>
+          <button type="button" data-value="dpi">DPI</button>
         </div>
-        <div id="dpiRow" class="sizemode-body">
+        <div id="dpiRow" class="sizemode-body" hidden>
           <select id="dpi">
             <option value="72" selected>72 dpi</option>
             <option value="100">100 dpi</option>
@@ -180,7 +180,7 @@
           </select>
           <input id="dpiCustom" type="number" min="10" max="1200" step="1" value="72" hidden>
         </div>
-        <div id="customRow" class="sizemode-body" hidden>
+        <div id="customRow" class="sizemode-body">
           <input id="customW" type="number" min="0.1" step="0.1" disabled>
           <span style="color: #7a6a58;">×</span>
           <input id="customH" type="number" min="0.1" step="0.1" disabled>
@@ -191,7 +191,7 @@
         </div>
         <label class="mirror-label">
           <input type="checkbox" id="mirror">
-          Flip it left-to-right (for iron-on transfers and window vinyl)
+          Flip it left-to-right for a mirror image.
         </label>
       </div>
     </div>

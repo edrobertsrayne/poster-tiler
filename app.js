@@ -94,7 +94,7 @@ if (typeof document !== 'undefined') {
   let bitmap = null; // decoded source image
   let composed = null; // { canvas, cols, rows, tw, th, orient, paper }
 
-  const state = { paper: 'A4', orient: 'auto', sizemode: 'dpi', customUnit: 'cm' };
+  const state = { paper: 'A4', orient: 'auto', sizemode: 'custom', customUnit: 'cm' };
 
   function syncSeg(container, value) {
     container.querySelectorAll('button').forEach((btn) => {
