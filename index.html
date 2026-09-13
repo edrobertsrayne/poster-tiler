@@ -25,7 +25,7 @@
     margin: 0 0 16px;
     max-width: 14ch;
   }
-  .lede { font-size: 17px; line-height: 1.5; color: #4a3f35; margin: 0 0 48px; max-width: 52ch; }
+  .lede { font-size: 17px; line-height: 1.5; color: #4a3f35; margin: 0 0 48px; max-width: 52ch; text-wrap: pretty; }
   .steps { display: grid; gap: 28px; }
   .step { border: 2px solid #1a1613; background: #fffaf0; box-shadow: 6px 6px 0 #1a1613; }
   .step-head {
@@ -62,6 +62,7 @@
   input[type=number] { width: 104px; }
   #dpiCustom { width: 96px; }
   .sizemode-body { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sizemode-body[hidden] { display: none; }
   .mirror-label {
     display: inline-flex; align-items: center; gap: 9px; margin-top: 18px;
     font-size: 14px; color: #4a3f35; cursor: pointer;
@@ -86,6 +87,18 @@
   .callout {
     font-size: 14px; line-height: 1.5; margin: 20px 0 0; padding: 14px 16px;
     border: 2px solid #1a1613; background: #f5ead6; color: #1a1613;
+  }
+  #altLine { color: #7a6a58; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 36px 16px 64px; }
+    .step { box-shadow: 4px 4px 0 #1a1613; }
+    #download { box-shadow: 3px 3px 0 #d94f1e; }
+    .row { gap: 20px; }
+    .seg { flex-wrap: wrap; }
+    .result-row { align-items: flex-start; }
+    .step-head { padding: 10px 14px; }
+    .step-body { padding: 16px 14px; }
   }
 </style>
 </head>
@@ -190,6 +203,7 @@
           <div id="sheetInfo">
             <div id="sheetLine">No picture yet</div>
             <div id="sizeLine"></div>
+            <div id="altLine"></div>
           </div>
         </div>
         <p id="errorMsg" class="error" hidden></p>

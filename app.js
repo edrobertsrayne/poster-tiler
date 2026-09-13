@@ -62,6 +62,8 @@ function composeOffsets(canvasW, canvasH, imgW, imgH) {
 }
 
 function toInches(v, unit) { return unit === 'cm' ? v / 2.54 : v; }
+const ORIENT_LABEL = { portrait: 'tall', landscape: 'wide' };
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 // ---- browser wiring (skipped under node/bun test harness) ----
 if (typeof document !== 'undefined') {
@@ -72,6 +74,7 @@ if (typeof document !== 'undefined') {
   const previewPlaceholder = document.getElementById('previewPlaceholder');
   const sheetLineEl = document.getElementById('sheetLine');
   const sizeLineEl = document.getElementById('sizeLine');
+  const altLineEl = document.getElementById('altLine');
   const errorMsgEl = document.getElementById('errorMsg');
   const warnMsgEl = document.getElementById('warnMsg');
   const downloadBtn = document.getElementById('download');
@@ -246,6 +249,8 @@ if (typeof document !== 'undefined') {
     const [twPt, thPt] = tileSize(paper, orient);
     const [tw, th] = tilePixels(paper, orient, dpi);
     const g = orient === 'portrait' ? portrait : landscape;
+    const other = orient === 'portrait' ? landscape : portrait;
+    const otherOrient = orient === 'portrait' ? 'landscape' : 'portrait';
 
     const canvasW = g.cols * tw;
     const canvasH = g.rows * th;
@@ -313,6 +318,9 @@ if (typeof document !== 'undefined') {
     const cm = (v) => (v * 2.54).toFixed(0);
     sheetLineEl.textContent = `${fmtGrid(g)} of ${paper} ${orient}`;
     sizeLineEl.textContent = `${pw.toFixed(1)}×${ph.toFixed(1)} in · ${cm(pw)}×${cm(ph)} cm · ${Math.round(dpi)} dpi`;
+    altLineEl.textContent = mode === 'auto'
+      ? `${cap(ORIENT_LABEL[otherOrient])} would be ${fmtGrid(other)}`
+      : `Auto would pick ${ORIENT_LABEL[winner]} — ${ORIENT_LABEL[otherOrient]} would be ${fmtGrid(other)}`;
 
     // Blank-tile warning (never silently blank): sample each tile of the clean
     // compose and flag one that is entirely padding.
