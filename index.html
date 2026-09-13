@@ -90,19 +90,18 @@
   }
   .kofi-wrap { margin: 18px 0 0; text-align: center; }
   .kofi-btn {
-    display: inline-block; padding: 12px 22px; border: 2px solid #1a1613;
-    font-family: inherit; font-size: 14px; font-weight: 800;
+    display: inline-block; padding: 9px 16px; border: 2px solid #1a1613;
+    font-family: inherit; font-size: 13px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.04em; text-decoration: none;
-    color: #fffaf0; background: #d94f1e; box-shadow: 4px 4px 0 #1a1613;
+    color: #1a1613; background: #f5ead6; margin-top: 32px;
   }
-  .kofi-btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 #1a1613; }
-  .kofi-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #1a1613; }
+  .kofi-btn:hover { background: #d94f1e; color: #fffaf0; }
+  .kofi-btn img { height: 1em; width: auto; vertical-align: -0.15em; margin-right: 7px; }
 
   @media (max-width: 640px) {
     .wrap { padding: 36px 16px 64px; }
     .step { box-shadow: 4px 4px 0 #1a1613; }
     #download { box-shadow: 3px 3px 0 #d94f1e; }
-    .kofi-btn { box-shadow: 3px 3px 0 #1a1613; }
     .row { gap: 20px; }
     .seg { flex-wrap: wrap; }
     .result-row { align-items: flex-start; }
@@ -217,7 +216,7 @@
         </div>
         <p id="errorMsg" class="error" hidden></p>
         <p class="callout">In your printer dialog choose <strong>100% / Actual size</strong>. &ldquo;Fit to page&rdquo; shrinks each sheet slightly and the picture will not line up.</p>
-        <p class="kofi-wrap"><a class="kofi-btn" href="https://ko-fi.com/edrobertsrayne" target="_blank" rel="noopener noreferrer">☕ Say thanks on Ko-fi</a></p>
+        <p class="kofi-wrap"><a class="kofi-btn" href="https://ko-fi.com/edrobertsrayne" target="_blank" rel="noopener noreferrer"><img src="kofi-logo.png" alt="" width="161" height="130">Say thanks on Ko-fi</a></p>
       </div>
     </div>
   </div>
